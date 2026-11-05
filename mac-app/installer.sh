@@ -21,7 +21,8 @@ fail() { alerte "$1"; exit 1; }
 # Lit un champ d'un fichier JSON (plutil, livré avec macOS).
 champ() { plutil -extract "$2" raw -o - "$1" 2>/dev/null; }
 
-[ "$(uname -m)" = "arm64" ] || fail "Cette version est pour les Mac à puce Apple (M1 à M5)."
+# Puce Apple ? (vrai même si l'appli tourne sous Rosetta, où « uname -m » dit x86_64.)
+[ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = "1" ] || fail "Cette version est pour les Mac à puce Apple (M1, M2, M3, M4…). Ce Mac a un processeur Intel."
 
 CHOIX=$(osascript -e "button returned of (display dialog \"L'installeur télécharge la dernière version de Tour de contrôle depuis le dépôt GitHub privé. Il faut un compte GitHub invité sur ce dépôt.
 

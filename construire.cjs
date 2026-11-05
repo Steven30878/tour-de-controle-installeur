@@ -48,9 +48,11 @@ const info = plist.build({
   CFBundleExecutable: 'installer',
   CFBundleIconFile: 'AppIcon',
   CFBundlePackageType: 'APPL',
-  CFBundleShortVersionString: '2.0',
-  CFBundleVersion: '2',
+  CFBundleShortVersionString: '3.0',
+  CFBundleVersion: '3',
   LSMinimumSystemVersion: '13.0',
+  // L'exécutable est un script : sans ça, macOS le lance sous Rosetta (mode Intel).
+  LSArchitecturePriority: ['arm64'],
   NSHighResolutionCapable: true,
 });
 const script = fs.readFileSync(path.join(here, 'mac-app', 'installer.sh'), 'utf8').replace(/\r\n/g, '\n');
