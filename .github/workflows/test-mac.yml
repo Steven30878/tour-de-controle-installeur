@@ -1,0 +1,54 @@
+# Essai de l'installeur Mac sur un vrai Mac à puce Apple de GitHub (gratuit pour un dépôt public).
+# Télécharge l'installeur publié, le lance comme un double-clic (open), puis aussi sous Rosetta,
+# et vérifie qu'il détecte la puce et lit la réponse de GitHub. Il s'arrête avant toute connexion
+# à un compte (mode test, déclenché par /tmp/tdc-installeur-test).
+name: Essai installeur Mac
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version de l'installeur à essayer (vide = la dernière)
+        required: false
+  release:
+    types: [published]
+
+jobs:
+  mac:
+    runs-on: macos-14
+    timeout-minutes: 10
+    steps:
+      - name: Télécharger l'installeur publié
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir dl
+          gh release download ${{ github.event.inputs.version || '' }} --repo ${{ github.repository }} --pattern 'Installer-Tour-de-controle-Mac.tar.gz' -D dl
+          tar -xzf dl/Installer-Tour-de-controle-Mac.tar.gz -C dl
+          ls -la dl "dl/Installer Tour de contrôle.app/Contents/MacOS"
+          sw_vers; uname -m
+
+      - name: Structure de l'appli
+        run: |
+          APP="dl/Installer Tour de contrôle.app"
+          plutil -lint "$APP/Contents/Info.plist"
+          test -x "$APP/Contents/MacOS/installer"
+          bash -n "$APP/Contents/MacOS/installer"
+          plutil -p "$APP/Contents/Info.plist"
+
+      - name: Lancement comme un double-clic (open)
+        run: |
+          rm -f /tmp/tdc-installeur-rapport.txt; touch /tmp/tdc-installeur-test
+          open -W "dl/Installer Tour de contrôle.app"
+          cat /tmp/tdc-installeur-rapport.txt
+          grep -q '^OK$' /tmp/tdc-installeur-rapport.txt
+          grep -q 'arm64=1' /tmp/tdc-installeur-rapport.txt
+          grep -Eq 'code=[A-Z0-9]{4}-[A-Z0-9]{4} device=ok' /tmp/tdc-installeur-rapport.txt
+
+      - name: Lancement sous Rosetta (mode Intel)
+        run: |
+          if ! arch -x86_64 /usr/bin/true 2>/dev/null; then echo "Rosetta absent sur ce Mac : étape sautée"; exit 0; fi
+          rm -f /tmp/tdc-installeur-rapport.txt; touch /tmp/tdc-installeur-test
+          arch -x86_64 /bin/bash "dl/Installer Tour de contrôle.app/Contents/MacOS/installer"
+          cat /tmp/tdc-installeur-rapport.txt
+          grep -q 'uname=x86_64' /tmp/tdc-installeur-rapport.txt
+          grep -q '^OK$' /tmp/tdc-installeur-rapport.txt

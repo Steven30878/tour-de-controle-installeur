@@ -48,8 +48,8 @@ const info = plist.build({
   CFBundleExecutable: 'installer',
   CFBundleIconFile: 'AppIcon',
   CFBundlePackageType: 'APPL',
-  CFBundleShortVersionString: '3.0',
-  CFBundleVersion: '3',
+  CFBundleShortVersionString: '3.1',
+  CFBundleVersion: '4',
   LSMinimumSystemVersion: '13.0',
   // L'exécutable est un script : sans ça, macOS le lance sous Rosetta (mode Intel).
   LSArchitecturePriority: ['arm64'],

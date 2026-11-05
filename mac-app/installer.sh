@@ -17,16 +17,24 @@ trap 'rm -rf "$WORK"' EXIT
 esc() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
 alerte() { osascript -e "display alert \"$(esc "$TITRE")\" message \"$(esc "$1")\" as critical buttons {\"OK\"}" >/dev/null 2>&1; }
 info() { osascript -e "display notification \"$(esc "$1")\" with title \"$(esc "$TITRE")\"" >/dev/null 2>&1; }
-fail() { alerte "$1"; exit 1; }
 # Lit un champ d'un fichier JSON (plutil, livré avec macOS).
 champ() { plutil -extract "$2" raw -o - "$1" 2>/dev/null; }
+
+# Mode test (tests automatiques sur un Mac de GitHub) : déclenché par un fichier, car une appli
+# ouverte par « open » ne reçoit pas de variables d'environnement. Pas de fenêtre ; un rapport est
+# écrit, et l'installeur s'arrête juste avant la connexion à un compte.
+TEST=''
+[ -f /tmp/tdc-installeur-test ] && TEST=1
+rapport() { [ -n "$TEST" ] && echo "$*" >> /tmp/tdc-installeur-rapport.txt; return 0; }
+rapport "uname=$(uname -m) arm64=$(sysctl -n hw.optional.arm64 2>/dev/null) macos=$(sw_vers -productVersion)"
+fail() { if [ -n "$TEST" ]; then rapport "ECHEC: $1"; else alerte "$1"; fi; exit 1; }
 
 # Puce Apple ? (vrai même si l'appli tourne sous Rosetta, où « uname -m » dit x86_64.)
 [ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = "1" ] || fail "Cette version est pour les Mac à puce Apple (M1, M2, M3, M4…). Ce Mac a un processeur Intel."
 
-CHOIX=$(osascript -e "button returned of (display dialog \"L'installeur télécharge la dernière version de Tour de contrôle depuis le dépôt GitHub privé. Il faut un compte GitHub invité sur ce dépôt.
+if [ -n "$TEST" ]; then CHOIX='Édition clé API'; else CHOIX=$(osascript -e "button returned of (display dialog \"L'installeur télécharge la dernière version de Tour de contrôle depuis le dépôt GitHub privé. Il faut un compte GitHub invité sur ce dépôt.
 
-Quelle édition ?\" buttons {\"Annuler\", \"Édition perso\", \"Édition clé API\"} default button \"Édition clé API\" cancel button \"Annuler\" with title \"$TITRE\")" 2>/dev/null) || exit 0
+Quelle édition ?\" buttons {\"Annuler\", \"Édition perso\", \"Édition clé API\"} default button \"Édition clé API\" cancel button \"Annuler\" with title \"$TITRE\")" 2>/dev/null) || exit 0; fi
 if [ "$CHOIX" = "Édition perso" ]; then EDITION='perso'; else EDITION='vendable'; fi
 
 # --- Connexion à GitHub --------------------------------------------------------------------
@@ -38,6 +46,7 @@ WAIT=$(champ "$WORK/code.json" interval); WAIT=${WAIT:-5}; [ "$WAIT" -ge 5 ] 2>/
 DUREE=$(champ "$WORK/code.json" expires_in); DUREE=${DUREE:-900}
 [ -n "$CODE" ] && [ -n "$DEVICE" ] || fail "GitHub n'a pas donné de code de connexion. Réessaie dans un instant."
 FIN=$(( $(date +%s) + DUREE ))
+if [ -n "$TEST" ]; then rapport "code=$CODE device=${DEVICE:+ok} uri=$URI duree=$DUREE attente=$WAIT edition=$EDITION"; rapport "OK"; exit 0; fi
 printf '%s' "$CODE" | pbcopy
 open "${URI:-https://github.com/login/device}"
 osascript -e "display dialog \"Sur la page GitHub qui vient de s'ouvrir, saisis ce code (il est déjà copié : Cmd+V), puis autorise Tour de contrôle :
